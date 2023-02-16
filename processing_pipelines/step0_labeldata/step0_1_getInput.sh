@@ -27,7 +27,7 @@ Dir_Test="$Dir_Common/CNN/Output_Extracted/dat_test" # folder for testing datase
 Subj_Seq=(`seq -f '%02g' 1 25`) #the number sequence of 25 participants, stored as an array
 Subj_ID=(${Subj_Seq[@]/#/sub-}) #add a prefix to each of the element
 Num_Subj=${#Subj_ID[@]}
-Num_Run=6
+Num_Run=0 # this will be updated in the loop as runs across subj are uneven.
 Num_Cond=4
 Num_RepCond=2
 
@@ -53,10 +53,12 @@ do
     echo "Copying the timing files to tmp folder..."
     cp $Dir_Common/$Subj_tmp/func/timing/* $Dir_tmp_subj # copy all timing files to the temp subj folder
 
-    # sub-06 and sub-11 only have 5 runs
+    # sub-06 and sub-12 only have 5 runs
     if [ $iSubj -eq 5 ] || [ $iSubj -eq 11 ]
     then
         Num_Run=5
+    else
+        Num_Run=6
     fi
 
     # looping through runs and conds and condreps
@@ -150,14 +152,14 @@ do
 
                     echo "Phase 2: Extracting 27 volumes as final output..."
 
-                    if [[ "$Dat_type" = "$tr" ]]
+                    if [[ "$Dat_type" = "$te" ]]
                     then 
-                        Dir_Output_27=$Dir_Train
-                    elif [[ "$Dat_type" = "$te" ]]
-                    then
                         Dir_Output_27=$Dir_Test
-                    else
+                    elif [[ "$Dat_type" = "$va" ]]
+                    then
                         Dir_Output_27=$Dir_Validate
+                    else
+                        Dir_Output_27=$Dir_Train
                     fi
 
 
