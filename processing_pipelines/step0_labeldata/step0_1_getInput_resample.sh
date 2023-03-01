@@ -3,22 +3,38 @@
 ### Use above for the debug with bashdb to run properly
 ### Adapted from the script writted by Xiaoxiao Wang (Wang et al., 2019)
 ### Author: Han Wang
+### 24-Feb-2023:
+### 23-Feb-2023: The script no longer selects 27 random images for the training set, this will be performed during training.
+### 23-Feb-2023: Added resampling of the images to 91 x 109 x 91 and striping of the skull.
 ### 06-Feb-2023: The script now outputs the training (18 subj), validation (2 subj), and testing datasets (5 subj).
 ### 30-Jan-2023: Changing the script to extract images per task per block and output all files to one folder.
 
 ### basic setups
+
+#### setup freesurfer
+cd ~/freesurfer
+pwd
+export FREESURFER_HOME=$HOME/freesurfer
+source $FREESURFER_HOME/SetUpFreeSurfer.sh
+
+
 #### folders for all participants' preprocessed data of the dual-task.
 Dir_Common="/mnt/g/Backup/fMRI_dualtask/1_processed/batch_processing_spmeditor/Data"
 
 Dir_TMP="$Dir_Common/CNN/Output_Extracted/tmp" # a temporary folder
-Dir_Output="$Dir_Common/CNN/Output_Extracted/" # folder for output (31 volumes maximum, NOT yet extracted for training, etc.)
+Dir_Output="$Dir_Common/CNN/Output_Extracted" # folder for output (31 volumes maximum, NOT yet extracted for training, etc.)
+File_Ref="$Dir_Output/dat_ref/avg152T1.nii"
+
+
+
 
 Dat_type_txt=$Dir_TMP/train_va_test.txt
 tr=`sed -n "2,1p" $Dat_type_txt|awk '{print $2}'`
-va=`sed -n "8,1p" $Dat_type_txt|awk '{print $2}'`
+va=`sed -n "7,1p" $Dat_type_txt|awk '{print $2}'`
 te=`sed -n "3,1p" $Dat_type_txt|awk '{print $2}'`
 
 
+Dir_All="$Dir_Common/CNN/Output_Extracted/dat_all" # folder for all dataset output (first 27 volumnes)ech
 Dir_Train="$Dir_Common/CNN/Output_Extracted/dat_train" # folder for training dataset output (random 27 volumes)
 Dir_Validate="$Dir_Common/CNN/Output_Extracted/dat_validate" # folder for validation dataset output (first 27 volumes)
 Dir_Test="$Dir_Common/CNN/Output_Extracted/dat_test" # folder for testing dataset output (first 27 volumnes)ech
@@ -67,10 +83,58 @@ do
 
         File_InputNii=$Dir_tmp_subj/wr$(echo $Subj_tmp | tr -d -)-run${iRun}_bold.nii
 
+        # Get the index of the last volume
+        Ind_Last=`3dinfo -n4 $File_InputNii`
+        Ind_Last=`echo $Ind_Last | awk '{print $NF}'`
+        Ind_Last=$(echo "$Ind_Last-1" |bc)
+
+        # convert the current run nii to 3d nii AND perform skull stripping
+
+        RunSplitDir=$Dir_tmp_subj/Run${iRun}Split
+        RunStripDir=$Dir_tmp_subj/Run${iRun}Strip
+        RunStripMergeDir=$Dir_tmp_subj/Run${iRun}StripMerge
+        RunStripedMergeResampledDir=$Dir_tmp_subj/Run${iRun}StripMergeResample
+        mkdir $RunSplitDir
+        mkdir $RunStripDir
+        mkdir $RunStripMergeDir
+        mkdir $RunStripedMergeResampledDir
+        
+
+        echo "Started pre-processing Run ${iRun}..."
+
+        for ((iSptIdx=0; iSptIdx<=$Ind_Last; iSptIdx++ ))
+        do
+            echo "Converting 4d nifti to 3d nifti..."
+            echo "Generating idx ${iSptIdx} out of ${Ind_Last} indices..."
+            #File_InputNiiCurrent=${File_InputNii[$iSptIdx]}
+
+            #echo ${File_InputNii[$iSptIdx]}
+
+            3dTcat -prefix $RunSplitDir/wr$(echo $Subj_tmp | tr -d -)-run${iRun}_idx$iSptIdx.nii.gz ${File_InputNii}[$iSptIdx]
+
+            echo "Stripping off the skull for idx ${iSptIdx} out of ${Ind_Last} indices..."
+            mri_synthstrip -i $RunSplitDir/wr$(echo $Subj_tmp | tr -d -)-run${iRun}_idx$iSptIdx.nii.gz -o $RunStripDir/wr$(echo $Subj_tmp | tr -d -)-run${iRun}_stripped_idx$iSptIdx.nii.gz
+
+        done
+
+        # Concatenate all 3d niis back to a 4d one
+
+        echo "Merging 3d nifti to a 4d one..."
+        3dTcat -prefix $RunStripMergeDir/wr$(echo $Subj_tmp | tr -d -)-run${iRun}_stripmerged.nii.gz $RunStripDir/wr$(echo $Subj_tmp | tr -d -)-run${iRun}_stripped_idx* -tr $Dig_TR_Sec
+
+        # Resample all images to standard 91 x 109 x 91 MNI space
+
+        echo "Resample the 4d nifti into a 91x109x91 space..."
+        3dresample -master $File_Ref -prefix $RunStripedMergeResampledDir/wr$(echo $Subj_tmp | tr -d -)-run${iRun}_stripmergedresampled.nii.gz -inset $RunStripMergeDir/wr$(echo $Subj_tmp | tr -d -)-run${iRun}_stripmerged.nii.gz
+
+        File_InputNii_Processed=$RunStripedMergeResampledDir/wr$(echo $Subj_tmp | tr -d -)-run${iRun}_stripmergedresampled.nii.gz
+        
+
         for ((iCond=1; iCond<=$Num_Cond; iCond++ ))
         do
             for ((iRepCond=1; iRepCond<=$Num_RepCond; iRepCond++ ))
             do
+                echo "Started separating files into conditions..."
                 echo "Reading RepCond${iRepCond} in run${iRun}_cond${iCond}.txt"
 
                 # Get the begining time and duration of the task, as well as the corresponding num of volumns
@@ -90,10 +154,7 @@ do
                 #    Num_DurTask_Ind=$(echo "((($Dig_DurTask_Sec+$Dig_DurPostTask_Sec)/$Dig_TR_Sec)+0.5)/1" |bc)
                 #fi
 
-                # Get the index of the last volume
-                Ind_Last=`3dinfo -n4 $File_InputNii`
-                Ind_Last=`echo $Ind_Last | awk '{print $NF}'`
-                Ind_Last=$(echo "$Ind_Last-1" |bc)
+
                 
                 # Get the volumn indices
                 Ind_TaskBegin=$(echo "scale=0;$Dig_TaskBegin_Sec/$Dig_TR_Sec" |bc)
@@ -106,51 +167,22 @@ do
                 fi
 
                 # Extract the volumes
-                echo "Phase 1: Extracting volumes for $Subj_tmp Run ${iRun} Cond ${iCond} RepCond ${iRepCond}..."
-                File_OutputMax31=$Dir_Output/$Subj_tmp'_Run-'$(echo "$iRun" |bc)'_Cond-'$(echo "$iCond" |bc)'_RepCond-'$(echo "$iRepCond" |bc)'_Vol-'$(echo "$Num_DurTask_Ind" |bc).nii.gz
+                echo "Extracting volumes for $Subj_tmp Run ${iRun} Cond ${iCond} RepCond ${iRepCond}..."
+
+                File_OutputMax31=$Dir_All/$Subj_tmp'_Run-'$(echo "$iRun" |bc)'_Cond-'$(echo "$iCond" |bc)'_RepCond-'$(echo "$iRepCond" |bc)'_Vol-'$(echo "$Num_DurTask_Ind" |bc).nii.gz
                 3dTcat -prefix $File_OutputMax31 \
-                        $File_InputNii'['$Ind_TaskBegin'..'$Ind_TaskEnd']'
-                echo "Done Segmentation 1!"
+                        $File_InputNii_Processed'['$Ind_TaskBegin'..'$Ind_TaskEnd']'
+                echo "Done Segmentation!"
 
-
-                # Further extract 27 vols for training, validation, and testing datasets
+                # Copy files to training, validation, and testing folders
 
                 Dat_type=`sed -n "$(echo "$iSubj+1" |bc),1p" $Dat_type_txt|awk '{print $2}'`
                 echo "Dat_type is $Dat_type"
 
                 if [[ $Num_DurTask_Ind -gt 26 ]]
                 then
-                    if [ "$Dat_type" = "$te" ] || [ "$Dat_type" = "$va" ]
-                    then
-                        echo "Will get the first 27 volumes!"
-                        Ind_SegBegin=0
-                        Ind_SegEnd=26
-                        DiffIndSeg=$(echo "$Ind_SegEnd-$Ind_SegBegin+1" |bc)
-                    else
-                        echo "Will randomly select 27 volumes!"
-                        Ind_SegBegin=9999
-                        Ind_SegEnd=9999
-                        DiffIndSeg=$(echo "$Ind_SegEnd-$Ind_SegBegin+1" |bc)
-
-                        while [ $DiffIndSeg != 27 ]
-                        do
-                            Ind_Seg=`shuf -i 0-$(echo "$Num_DurTask_Ind-1" |bc) -n 2`
-                            sortedInd_Seg=( $( printf "%s\n" "${Ind_Seg[@]}" | sort -n ) )
-                            #Ind_SegBegin=`echo $Ind_Seg | while read -r c1 c2; do echo $c1; done`
-                            Ind_SegBegin=${sortedInd_Seg[0]}
-                            #echo "Ind_SegBegin $Ind_SegBegin"
-                            #Ind_SegEnd=`echo $Ind_Seg | while read -r c1 c2; do echo $c2; done`
-                            Ind_SegEnd=${sortedInd_Seg[1]}
-                            #echo "Ind_SegEnd $Ind_SegEnd"
-                            DiffIndSeg=$(echo "$Ind_SegEnd-$Ind_SegBegin+1" |bc)
-                            #echo "DiffIndSeg $DiffIndSeg"
-                            #DiffIndSeg=${DiffIndSeg#-}
-                            #echo "ABS DiffIndSeg $DiffIndSeg"
-                        done
-                    fi
-
-
-                    echo "Phase 2: Extracting 27 volumes as final output..."
+                    
+                    echo "Copying file to the $Dat_type folder..."
 
                     if [[ "$Dat_type" = "$te" ]]
                     then 
@@ -162,12 +194,16 @@ do
                         Dir_Output_27=$Dir_Train
                     fi
 
+                    cp $File_OutputMax31 $Dir_Output_27
 
-                    File_Output27=$Dir_Output_27/$Subj_tmp'_Run-'$(echo "$iRun" |bc)'_Cond-'$(echo "$iCond" |bc)'_RepCond-'$(echo "$iRepCond" |bc)'_Vol-'$(echo "$Ind_SegBegin" |bc)'-'$(echo "$Ind_SegEnd" |bc)'-'$(echo "$DiffIndSeg" |bc).nii.gz
-                    3dTcat -prefix $File_Output27 \
-                            $File_OutputMax31'['$Ind_SegBegin'..'$Ind_SegEnd']'
-                    echo "Done Segmentation 2!"
+                    echo "Done Copy!"
+
+                else
+
+                    echo "Volumes less than 27, file won't be used."
+
                 fi
+                
             done
         done
     done
