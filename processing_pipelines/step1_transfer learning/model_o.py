@@ -8,10 +8,11 @@ class BasicBlock(nn.Module):
         self.conv1 = nn.Conv3d(n_in, n_out, kernel_size = 3, stride = stride, padding = 1)
         self.bn1 = nn.BatchNorm3d(n_out)
         self.relu = nn.ReLU(inplace = True)
+
         self.conv2 = nn.Conv3d(n_out, n_out, kernel_size = 3, padding = 1)
         self.bn2 = nn.BatchNorm3d(n_out)
-
         self.relu2 = nn.ReLU(inplace = True) 
+
         if stride != 1 or n_out != n_in:
             self.shortcut = nn.Sequential(
                 nn.Conv3d(n_in, n_out, kernel_size = 1, stride = stride),
@@ -42,6 +43,7 @@ class DeepBrain(nn.Module):
             nn.Conv3d(inplanes, planes, kernel_size=1, padding=0),
             nn.BatchNorm3d(planes),
             nn.ReLU(inplace=True),
+            
             nn.Conv3d(planes, 24, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm3d(24),
             nn.ReLU(inplace = True))
