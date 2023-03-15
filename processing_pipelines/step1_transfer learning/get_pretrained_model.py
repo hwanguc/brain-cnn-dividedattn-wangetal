@@ -34,11 +34,11 @@ def get_pretrained_model(n_classes,drop_out,train_on_gpu,multi_gpu):
 
     # freeze the parameters
     
-    #for param in model.parameters():
-        #param.requires_grad = False
+    for param in model.parameters():
+        param.requires_grad = False
 
-    #model.classifier[0].requires_grad_(True)
-    #model.post_conv.requires_grad_(True)
+    model.classifier[0].requires_grad_(True)
+    model.post_conv.requires_grad_(True)
     
     # reinitialize the weights of the fully connected layers and the last conv layer
 
@@ -49,7 +49,7 @@ def get_pretrained_model(n_classes,drop_out,train_on_gpu,multi_gpu):
     
     if drop_out:
         #model.classifier[0] = nn.Linear(n_inputs,n_inputs)
-        model.classifier[2] = nn.Dropout(p=0.3)
+        model.classifier[2] = nn.Dropout(p=0.25)
         model.classifier[3] = nn.Linear(64, n_classes)
 
         #model.classifier = nn.Sequential(

@@ -19,7 +19,7 @@ source $FREESURFER_HOME/SetUpFreeSurfer.sh
 
 
 #### folders for all participants' preprocessed data of the dual-task.
-Dir_Common="/mnt/g/Backup/fMRI_dualtask/1_processed/batch_processing_spmeditor/Data"
+Dir_Common="/mnt/sdb2/Backup/fMRI_dualtask/1_processed/batch_processing_spmeditor/Data"
 
 Dir_TMP="$Dir_Common/CNN/Output_Extracted/tmp" # a temporary folder
 Dir_Output="$Dir_Common/CNN/Output_Extracted" # folder for output (31 volumes maximum, NOT yet extracted for training, etc.)
@@ -56,7 +56,7 @@ Dig_DurPostTask_Sec_St=3.9
 
 ### CHANGE the iSubj= to the ID you want to start with (need to put ID-1)
 
-for (( iSubj=0; iSubj<$Num_Subj; iSubj++ ))
+for (( iSubj=21; iSubj<$Num_Subj; iSubj++ ))
 do
     Subj_tmp=${Subj_ID[$iSubj]}
     mkdir $Dir_TMP/$Subj_tmp
@@ -113,7 +113,7 @@ do
             3dTcat -prefix $RunSplitDir/wr$(echo $Subj_tmp | tr -d -)-run${iRun}_idx$iSptIdx.nii.gz ${File_InputNii}[$iSptIdx]
 
             echo "Stripping off the skull for idx ${iSptIdx} out of ${Ind_Last} indices..."
-            mri_synthstrip -i $RunSplitDir/wr$(echo $Subj_tmp | tr -d -)-run${iRun}_idx$iSptIdx.nii.gz -o $RunStripDir/wr$(echo $Subj_tmp | tr -d -)-run${iRun}_stripped_idx$iSptIdx.nii.gz
+            mri_synthstrip -i $RunSplitDir/wr$(echo $Subj_tmp | tr -d -)-run${iRun}_idx$iSptIdx.nii.gz -o $RunStripDir/wr$(echo $Subj_tmp | tr -d -)-run${iRun}_stripped_idx$iSptIdx.nii.gz -g
 
         done
 

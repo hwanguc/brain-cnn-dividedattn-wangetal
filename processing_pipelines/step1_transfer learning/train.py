@@ -13,7 +13,9 @@ def train(model,
           optimizer,
           train_loader,
           valid_loader,
-          save_file_name,
+          save_file_name_bestacc,
+          save_file_name_bestloss,
+          load_state,
           max_epochs_stop=3,
           n_epochs=100,
           print_every=2):
@@ -26,7 +28,8 @@ def train(model,
         optimizer (PyTorch optimizier): optimizer to compute gradients of model parameters
         train_loader (PyTorch dataloader): training dataloader to iterate through
         valid_loader (PyTorch dataloader): validation dataloader used for early stopping
-        save_file_name (str ending in '.pt'): file path to save the model state dict
+        save_file_name_bestacc (str ending in '.pt'): file path to save the model state dict for best validation accuracy
+        save_file_name_bestloss (str ending in '.pt'): file path to save the model state dict for best validation loss
         max_epochs_stop (int): maximum number of epochs with no improvement in validation loss for early stopping
         n_epochs (int): maximum number of training epochs
         print_every (int): frequency of epochs to print training stats
@@ -188,10 +191,18 @@ def train(model,
                         f'\t\tTraining Accuracy: {100 * train_acc:.2f}%\t Validation Accuracy: {100 * valid_acc:.2f}%'
                     )
 
+                if valid_acc > valid_max_acc:
+                    # Save model
+                    torch.save(model.state_dict(),save_file_name_bestacc)
+                    # Track improvement
+                    valid_max_acc = valid_acc
+                    valid_loss_maxacc = valid_loss
+                    valid_epoch_maxacc = epoch
+
                 # Save the model if validation loss decreases
                 if valid_loss < valid_loss_min:
                     # Save model
-                    torch.save(model.state_dict(), save_file_name)
+                    torch.save(model.state_dict(), save_file_name_bestloss)
                     # Track improvement
                     epochs_no_improve = 0
                     valid_loss_min = valid_loss
@@ -204,7 +215,7 @@ def train(model,
                     # Trigger early stopping
                     if epochs_no_improve >= max_epochs_stop:
                         print(
-                            f'\nEarly Stopping! Total epochs: {epoch}. Best epoch: {best_epoch} with loss: {valid_loss_min:.2f} and acc: {100 * valid_best_acc:.2f}%'
+                            f'\nEarly Stopping! Total epochs: {epoch}. Best loss epoch: {best_epoch} with loss: {valid_loss_min:.2f} and acc: {100 * valid_best_acc:.2f}%\nBest acc epoch: {valid_epoch_maxacc} with loss: {valid_loss_maxacc:.2f} and acc: {100 * valid_max_acc:.2f}%'
                         )
                         total_time = timer() - overall_start
                         print(
@@ -212,7 +223,7 @@ def train(model,
                         )
 
                         # Load the best state dict
-                        model.load_state_dict(torch.load(save_file_name))
+                        model.load_state_dict(torch.load(load_state))
                         # Attach the optimizer
                         model.optimizer = optimizer
 
@@ -230,7 +241,7 @@ def train(model,
     # Record overall time and print out stats
     total_time = timer() - overall_start
     print(
-        f'\nBest epoch: {best_epoch} with loss: {valid_loss_min:.2f} and acc: {100 * valid_best_acc:.2f}%'
+        f'\nBest epoch: {best_epoch} with loss: {valid_loss_min:.2f} and acc: {100 * valid_best_acc:.2f}%\nBest acc epoch: {valid_epoch_maxacc} with loss: {valid_loss_maxacc:.2f} and acc: {100 * valid_max_acc:.2f}%'
     )
     print(
         f'{total_time:.2f} total seconds elapsed. {total_time / (epoch):.2f} seconds per epoch.'

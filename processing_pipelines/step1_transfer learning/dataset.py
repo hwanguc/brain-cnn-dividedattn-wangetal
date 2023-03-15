@@ -14,7 +14,7 @@ class BrainDataset(Dataset):
         self.label_list = label_list
         
     def __getitem__(self, index):
-        img = self.normalize_data(nib.load(self.file_list[index]).get_data())
+        img = self.normalize_data(nib.load(self.file_list[index]).get_fdata())
         target = self.label_list[index]
         #target = self.label_list[index]
         #target = F.one_hot(torch.tensor(target), num_classes=4)
@@ -30,6 +30,7 @@ class BrainDataset(Dataset):
             #data = data[8:-8, 8:-8, :-10, select_idx-self.input_shape:select_idx]
         #else:
             #data = data[8:-8, 8:-8, :-10, :self.input_shape]
+        data = data[8:-8, 8:-8, :-10, :self.input_shape]
         if self.is_resize:
             data = data[2:-2,1:-1,:,:]
             data = np.pad(data, ((0, 0),(0, 0), (1, 1), (0, 0)))

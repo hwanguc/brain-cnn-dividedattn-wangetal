@@ -36,7 +36,7 @@ def load_checkpoint(path, train_on_gpu, multi_gpu):
         param.requires_grad = False
 
     model.classifier[0].requires_grad_(True)
-    model.classifier[2] = nn.Dropout(p=0.4)
+    model.classifier[2] = nn.Dropout(p=0.3)
     model.classifier[3].requires_grad_(True)
     model.post_conv.requires_grad_(True)
     
