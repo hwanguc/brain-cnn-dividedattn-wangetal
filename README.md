@@ -10,10 +10,15 @@ predicts fMRI task state under a divided-attention speech and visual dual task.
 ## processing_pipelines/step1_transfer_learning
 
 **main.py**: main script for the transfer learning pipeline.
-**dataset.py**: read and normalise the preprocessed data.
-**get_pretrained_model**: load the pretrained model.
-**load_save_checkpoint.py**: load or save the model state.
-**model_o.py**: a 3D convolutional network model proposed by Wang et al. (2019).
-**train.py**: model training.
-**test.py**: model testing.
 
+**dataset.py**: read and normalise the preprocessed data.
+
+**get_pretrained_model**: load the pretrained model.
+
+**load_save_checkpoint.py**: load or save the model state.
+
+**model_o.py**: a 3D convolutional network model proposed by Wang et al. (2019).
+
+**train.py**: model training.
+
+**test.py**: model testing.
